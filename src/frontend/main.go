@@ -88,6 +88,8 @@ func main() {
 	ctx := context.Background()
 	log := logrus.New()
 	log.Level = logrus.DebugLevel
+	// 设置了自定义的JSON日志格式，将字段名替换为timestamp，serverity和message
+	// 设置后的日志示例 {"timestamp": "2024-04-12T15:32:25.123456789Z", "severity": "info", "message": "User logged in successfully."}
 	log.Formatter = &logrus.JSONFormatter{
 		FieldMap: logrus.FieldMap{
 			logrus.FieldKeyTime:  "timestamp",
@@ -100,10 +102,12 @@ func main() {
 
 	svc := new(frontendServer)
 
+	// 设置了opentelemetry中的组合文本传播映射器，具体是干啥用的不是太清楚，后面再说
 	otel.SetTextMapPropagator(
 		propagation.NewCompositeTextMapPropagator(
 			propagation.TraceContext{}, propagation.Baggage{}))
 
+	// 判断是否进行Tracing初始化
 	if os.Getenv("ENABLE_TRACING") == "1" {
 		log.Info("Tracing enabled.")
 		initTracing(log, ctx, svc)
@@ -111,6 +115,7 @@ func main() {
 		log.Info("Tracing disabled.")
 	}
 
+	// 判断是否进行Profiling初始化
 	if os.Getenv("ENABLE_PROFILER") == "1" {
 		log.Info("Profiling enabled.")
 		go initProfiling(log, "frontend", "1.0.0")
@@ -169,8 +174,8 @@ func initStats(log logrus.FieldLogger) {
 }
 
 func initTracing(log logrus.FieldLogger, ctx context.Context, svc *frontendServer) (*sdktrace.TracerProvider, error) {
-	mustMapEnv(&svc.collectorAddr, "COLLECTOR_SERVICE_ADDR")
-	mustConnGRPC(ctx, &svc.collectorConn, svc.collectorAddr)
+	mustMapEnv(&svc.collectorAddr, "COLLECTOR_SERVICE_ADDR")	// 应该是从环境变量中获取opentelemetry的collector地址
+	mustConnGRPC(ctx, &svc.collectorConn, svc.collectorAddr)	// 根据collector地址建立连接
 	exporter, err := otlptracegrpc.New(
 		ctx,
 		otlptracegrpc.WithGRPCConn(svc.collectorConn))
@@ -208,6 +213,7 @@ func initProfiling(log logrus.FieldLogger, service, version string) {
 	log.Warn("warning: could not initialize Stackdriver profiler after retrying, giving up")
 }
 
+// 获取设置的环境变量值
 func mustMapEnv(target *string, envKey string) {
 	v := os.Getenv(envKey)
 	if v == "" {
