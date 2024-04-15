@@ -123,6 +123,7 @@ func main() {
 		log.Info("Profiling disabled.")
 	}
 
+	// 通过环境变量获取各种服务的地址，这些环境变量是自动化部署的配置文件中进行设置的
 	srvPort := port
 	if os.Getenv("PORT") != "" {
 		srvPort = os.Getenv("PORT")
@@ -145,7 +146,8 @@ func main() {
 	mustConnGRPC(ctx, &svc.checkoutSvcConn, svc.checkoutSvcAddr)
 	mustConnGRPC(ctx, &svc.adSvcConn, svc.adSvcAddr)
 
-	r := mux.NewRouter()
+	r := mux.NewRouter()	// 返回类型http.Handler是一个interface类型，需要实现ServeHTTP方法
+	// HandleFunc将输入参数中的函数转化为HandleFunc函数类型，这个类型实现了ServeHTTP方法，实现中对自己进行调用
 	r.HandleFunc("/", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc("/product/{id}", svc.productHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc("/cart", svc.viewCartHandler).Methods(http.MethodGet, http.MethodHead)
@@ -162,8 +164,8 @@ func main() {
 	r.HandleFunc("/bot", svc.chatBotHandler).Methods(http.MethodPost)
 
 	var handler http.Handler = r
-	handler = &logHandler{log: log, next: handler}     // add logging
-	handler = ensureSessionID(handler)                 // add session ID
+	handler = &logHandler{log: log, next: handler}     // add logging 定义在middleware.go中
+	handler = ensureSessionID(handler)                 // add session ID 定义在middleware.go中
 	handler = otelhttp.NewHandler(handler, "frontend") // add OTel tracing
 
 	log.Infof("starting server on " + addr + ":" + srvPort)
@@ -222,6 +224,7 @@ func mustMapEnv(target *string, envKey string) {
 	*target = v
 }
 
+// 建立grpc连接
 func mustConnGRPC(ctx context.Context, conn **grpc.ClientConn, addr string) {
 	var err error
 	ctx, cancel := context.WithTimeout(ctx, time.Second*3)
