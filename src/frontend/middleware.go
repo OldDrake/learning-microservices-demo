@@ -32,6 +32,7 @@ type logHandler struct {
 	next http.Handler
 }
 
+// 这里的responseRecorder是对http.ResponseWriter接口的一种实现，该接口要求实现Header，Write和WriteHeader三种方法
 type responseRecorder struct {
 	b      int
 	status int
@@ -54,6 +55,7 @@ func (r *responseRecorder) WriteHeader(statusCode int) {
 	r.w.WriteHeader(statusCode)
 }
 
+// 在logHandler中包含的http.Handler的ServeHTTP方法基础上增加新的操作
 func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	requestID, _ := uuid.NewRandom()
@@ -82,6 +84,7 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	lh.next.ServeHTTP(rr, r)
 }
 
+// 在原handler基础上确保存在sessionID，如果不存在则进行sessionID的设置
 func ensureSessionID(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var sessionID string
